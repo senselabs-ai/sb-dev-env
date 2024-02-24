@@ -1,0 +1,83 @@
+version: "3.3"
+services:
+  postgresql:
+    image: elestio/postgres:15
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - 127.0.0.1:5672:5432
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+    networks:
+      - keycloak-network
+
+  keycloak-theme-cloner:
+    image: alpine:3.17
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        git clone https://github.com/senselabs-ai/sb-keycloak.git /opt/keycloak/themes
+        chown -R keycloak:keycloak /opt/keycloak/themes
+    volumes:
+      - keycloak-data:/data 
+
+  keycloak:
+    user: 0:0
+    image: elestio/keycloak:${SOFTWARE_VERSION_TAG}
+    volumes:
+      - ./themes:/opt/keycloak/themes:ro  # Mount the local themes folder for development
+      - keycloak-data:/data
+    restart: always
+    entrypoint: "/opt/keycloak/bin/kc.sh start --hostname-strict=false --http-enabled=true --proxy edge"
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      - KEYCLOAK_LOGLEVEL=ALL
+      - QUARKUS_TRANSACTION_MANAGER_ENABLE_RECOVERY=true
+      - PROXY_ADDRESS_FORWARDING=true
+      - KC_HTTP_RELATIVE_PATH = "sitebot"
+      - KEYCLOAK_HTTP_ENABLED=true
+      - KEYCLOAK_ADMIN=$KEYCLOAK_ADMIN_USER
+      - KEYCLOAK_PASSWORD=$KEYCLOAK_ADMIN_PASSWORD
+      - KC_DB_USERNAME=$POSTGRES_USER
+      - KC_DB_PASSWORD=$POSTGRES_PASSWORD
+      - KC_DB=postgres
+      - KC_DB_URL_HOST=postgresql
+      - KC_DB_URL_DATABASE=$POSTGRES_DB
+      - KC_DB_URL_PORT=5432
+      - KC_DB_SCHEMA=public
+      - KEYCLOAK_PRODUCTION=true
+      - KEYCLOAK_PROXY=edge
+      - KEYCLOAK_EXTRA_ARGS=--auto-build
+      - JAVA_OPTS=-XX:MaxRAMPercentage=75.0
+    depends_on:
+      - keycloak-theme-cloner
+      - postgresql
+    networks:
+      - keycloak-network
+
+  pgadmin4:
+    image: dpage/pgadmin4:latest
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${ADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${SOFTWARE_PASSWORD}
+      PGADMIN_LISTEN_PORT: 8080
+    ports:
+      - "127.0.0.1:8095:8080"
+    volumes:
+      - ./servers.json:/pgadmin4/servers.json
+
+volumes:
+  keycloak-data:
+  customkeycloak:
+    driver: local
+
+networks:
+  keycloak-network:
+    driver: bridge
