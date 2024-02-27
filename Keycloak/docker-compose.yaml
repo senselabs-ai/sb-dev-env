@@ -12,26 +12,14 @@ services:
     networks:
       - keycloak-network
 
-  keycloak-theme-cloner:
-    image: alpine:3.17
-    command:
-      - sh
-      - -c
-      - |
-        set -e
-        git clone https://github.com/senselabs-ai/sb-keycloak.git /opt/keycloak/themes
-        chown -R keycloak:keycloak /opt/keycloak/themes
-    volumes:
-      - keycloak-data:/data 
-
   keycloak:
     user: 0:0
     image: elestio/keycloak:${SOFTWARE_VERSION_TAG}
-    volumes:
-      - ./themes:/opt/keycloak/themes:ro  # Mount the local themes folder for development
-      - keycloak-data:/data
     restart: always
     entrypoint: "/opt/keycloak/bin/kc.sh start --hostname-strict=false --http-enabled=true --proxy edge"
+    volumes:
+      - ./providers:/opt/keycloak/providers
+      - ./themes:/opt/keycloak/themes
     env_file:
       - .env
     ports:
@@ -40,7 +28,6 @@ services:
       - KEYCLOAK_LOGLEVEL=ALL
       - QUARKUS_TRANSACTION_MANAGER_ENABLE_RECOVERY=true
       - PROXY_ADDRESS_FORWARDING=true
-      - KC_HTTP_RELATIVE_PATH = "sitebot"
       - KEYCLOAK_HTTP_ENABLED=true
       - KEYCLOAK_ADMIN=$KEYCLOAK_ADMIN_USER
       - KEYCLOAK_PASSWORD=$KEYCLOAK_ADMIN_PASSWORD
@@ -56,7 +43,6 @@ services:
       - KEYCLOAK_EXTRA_ARGS=--auto-build
       - JAVA_OPTS=-XX:MaxRAMPercentage=75.0
     depends_on:
-      - keycloak-theme-cloner
       - postgresql
     networks:
       - keycloak-network
@@ -72,11 +58,6 @@ services:
       - "127.0.0.1:8095:8080"
     volumes:
       - ./servers.json:/pgadmin4/servers.json
-
-volumes:
-  keycloak-data:
-  customkeycloak:
-    driver: local
 
 networks:
   keycloak-network:
