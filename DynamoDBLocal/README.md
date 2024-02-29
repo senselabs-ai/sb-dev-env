@@ -1,12 +1,7 @@
-# DynamoDB
-To run Docker Compose, use the following command:
+# Dynamo Local
+Open the NoSQL Workbench and toggle the DDB Local field
 
-### Run container
-```python
-docker-compose up -d
-```
-
-###Link to original article
-```text
- Original article at [https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DynamoDBLocal.DownloadingAndRunning.html](DynamoDBLocal)
+Don't use localhost, get the machines IP and use that in the code
+```shell
+ifconfig | grep inet
 ```
